@@ -9,7 +9,7 @@ from scrapy.exceptions import DropItem
 from scrapy.pipelines.images import ImagesPipeline
 from scrapy.exporters import JsonLinesItemExporter
 
-identifier = '' # Enter identifier
+identifier = 'url' # Enter identifier
 
 class DuplicatesPipeline(object): 
     
@@ -17,10 +17,10 @@ class DuplicatesPipeline(object):
         self.identifier_seen = set() 
 
     def process_item(self, item, spider): 
-        if item[identifier] in self.identifier_seen: 
+        if item[identifier][0] in self.identifier_seen: 
             raise DropItem("Repeated item found: %s" % item) 
         else: 
-            self.identifier_seen.add(item[identifier]) 
+            self.identifier_seen.add(item[identifier][0]) 
             return item
 
 class ProcessImagesPipeline(ImagesPipeline):
@@ -73,3 +73,61 @@ class SaveFilePipeline(object):
         if spider.name == 'Crawl' or item[identifier] is not None:
             self.exporter.export_item(item)
         return item
+
+
+
+
+
+
+
+
+
+
+# UNDERSTAND THIS CODE, read what is given in docs.scrapy.org
+    
+class DatabasePipeline(object):
+    
+    def __init__(self, db, user, passwd, host):
+        self.db = db
+        self.user = user
+        self.passwd = passwd
+        self.host = host
+        
+    @classmethod # Bound method to class instead of to object
+    def from_crawler(cls, crawler):
+        db_settings = crawler.settings.getdict('DB_SETTINGS')
+        if not db_settings:
+            raise NotConfigured
+            db = db_settings['db']
+
+    def from_crawler(cls, crawler):
+        db_settings = crawler.settings.getdict("DB_SETTINGS")
+        if not db_settings:
+              raise NotConfigured
+              db = db_settings['db']
+              user = db_settings['user']
+              passwd = db_settings['passwd']
+              host = db_settings['host']
+              return cls(db, user, passwd, host)
+       # Connect to the database when the spider starts
+       def open_spider(self, spider):
+              self.conn = MySQLdb.connect(db=self.db,
+                            user=self.user, passwd=self.passwd,
+                            host=self.host,
+                            charset='utf8', use_unicode=True)
+              self.cursor = self.conn.cursor()
+       # Insert data records into the database (one item at a time)
+       def process_item(self, item, spider):
+              sql = "INSERT INTO table (field1, field2, field3) VALUES (%s, %s, %s)"
+              self.cursor.execute(sql,
+                             (
+                             item.get("field1"),
+                             item.get("field2"),
+                             item.get("field3"),
+                             )
+                             )
+              self.conn.commit()
+              return item
+       # When all done close the database connection
+       def close_spider(self, spider):
+              self.conn.close()

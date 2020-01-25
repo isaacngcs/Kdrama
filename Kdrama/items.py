@@ -7,8 +7,26 @@
 
 import scrapy
 
+class LinksItem(scrapy.Item):
+    
+    url = scrapy.Field()
+    links = scrapy.Field()
+    count = scrapy.Field()
 
 class KdramaItem(scrapy.Item):
-    # define the fields for your item here like:
-    # name = scrapy.Field()
-    pass
+    
+    url = scrapy.Field()
+    title = scrapy.Field()
+    info = scrapy.Field()
+    table = scrapy.Field()
+    
+    '''
+    title = scrapy.Field()
+    genre = scrapy.Field()
+    num_episodes = scrapy.Field()
+    network = scrapy.Field()
+    broadcast_period = scrapy.Field()
+    air_slot = scrapy.Field()
+    synopsis = scrapy.Field()
+    cast = scrapy.Field()
+    '''
