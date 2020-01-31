@@ -43,23 +43,16 @@ class SaveFilePipeline(object):
     
     def __init__(self):
         self.files = {}
-        
-    # Have a meta file to check new items against Scrape.jl
-    # New entries append when duplicates are skipped
-    
-    '''
-    Two files, one for item data, one for scraped items
-    Scrape.jl = item data file
-    Links_done.jl = scraped items file
-    
-    Links_done first accessed though spider first to get list
-    Links_done accessed again in close_spider to append new scraped items
-    '''
     
     def open_spider(self, spider):
-        file = open('%s.jl' % spider.name, 'ab+')
+        open_type = ''
+        if spider.name == 'Crawl':
+            open_type = 'wb'
+        elif spider.name == 'Scrape':
+            open_type = 'ab+'
+        file = open('%s.jl' % spider.name, open_type)
         self.files[spider] = file
-        self.exporter = JsonLinesItemExporter(file)
+        self.exporter = JsonLinesItemExporter(file, ensure_ascii=False)
         self.exporter.start_exporting() 
         print('Identifier is %s' % identifier)
         
@@ -84,7 +77,7 @@ class SaveFilePipeline(object):
 
 
 # UNDERSTAND THIS CODE, read what is given in docs.scrapy.org
-    
+'''
 class DatabasePipeline(object):
     
     def __init__(self, db, user, passwd, host):
@@ -131,3 +124,4 @@ class DatabasePipeline(object):
        # When all done close the database connection
        def close_spider(self, spider):
               self.conn.close()
+'''

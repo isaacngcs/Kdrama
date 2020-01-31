@@ -29,8 +29,13 @@ class CrawlSpider(scrapy.Spider):
                        response = response,
                        )
         l.add_value('url', response.meta['source_url'])
+        links = set([])
         for n in [1, 2]:
-            l.add_css('links', 'div.entrytext p:nth-child(%s) a ::attr(href)' % n)
+            selector = 'div.entrytext p:nth-child(%s) a ::attr(href)' % n
+            for link in response.css(selector).extract():
+                if '/tag/' not in link:
+                    links.add(link)
+        l.add_value('links', list(links))
         l.add_value('count', len(l.get_collected_values('links')))
         
         yield l.load_item()

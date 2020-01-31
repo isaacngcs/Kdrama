@@ -11,15 +11,15 @@ class ScrapeSpider(scrapy.Spider):
                     'Kdrama.pipelines.DuplicatesPipeline': 250,
                     'Kdrama.pipelines.SaveFilePipeline': 251,
                     'Kdrama.pipelines.ProcessImagesPipeline': 300,
-                    'Kdrama.pipelines.DatabasePipeline': 301,
+                    #'Kdrama.pipelines.DatabasePipeline': 301,
                     }
             }
         
     def get_requests(self):
         
         import json
-        items = []
-        links = []
+        items = set([])
+        links = set([])
         crawled = 'Crawl'
         scraped = 'Scrape'
     
@@ -27,22 +27,23 @@ class ScrapeSpider(scrapy.Spider):
             with open('%s.jl' % crawled, 'r', encoding='utf-8') as f:
                 loaded = json.load(f)
                 for link in loaded['links']:
-                    links.append(link)
+                    links.add(link)
             print('%s.jl imported' % crawled)
         except FileNotFoundError:
             print('%s.jl not found' % crawled)
             return links
       
         try:
-            with jsonlines.open('%s.jl' % scraped, 'r') as f:
+            with open('%s.jl' % scraped, 'r', encoding='utf-8') as f:
                 for line in f:
-                    items.append(line['url'])
+                    items.add(json.loads(line)['url'][0])
             print('%s.jl imported' % scraped)
         except IOError:
             print('%s.jl not found' % scraped)
         
+        unscraped = []
         if items:
-            unscraped = list(set(links) - set(items))    
+            unscraped = list(links - items)    
         else:
             unscraped = links
         print('Links to scrape: %d out of %d' % (len(unscraped), len(links)))
@@ -51,9 +52,10 @@ class ScrapeSpider(scrapy.Spider):
     def start_requests(self):
         
         # Test single page
-        links = ['http://www.koreandrama.org/angels-last-mission-love/']
+        #links = ['http://www.koreandrama.org/angels-last-mission-love/',
+        #         'http://www.koreandrama.org/wanna-taste/']
         
-        for link in links:#self.get_requests():
+        for link in self.get_requests():
             yield scrapy.Request(
                 url = link,
                 callback = self.parse_product,
@@ -63,27 +65,34 @@ class ScrapeSpider(scrapy.Spider):
 
     def parse_product(self, response):
         
+        from unidecode import unidecode
+        # use unidecode on all fields
+        def decode(data):
+            if isinstance(data, list):
+                return [decode(x) for x in data]
+            return unidecode(data) if data else data
+        
         l = ItemLoader(item = KdramaItem(),
                        response = response,
                        )
         l.add_value('url', response.meta['source_url'])
-        l.add_css('title', 'h3.post-title a ::text')
+        l.add_css('title', decode('h3.post-title a ::text'))
         
         info = response.css('div.entrytext p')
         segments = {}
         part_id = 1
         segment = 'Details'
         for p in info:
-            new_segment = p.css('strong ::text').extract_first()
+            new_segment = decode(p.css('strong ::text').extract_first())
             if new_segment:
                 segment = new_segment
                 part_id = 1
             else:
-                segments[segment + str(part_id)] = ' '.join(p.css('::text').extract())
+                segment_part = segment + ' ' + str(part_id)
+                segments[segment_part] = ' '.join(decode(p.css('::text').extract()))
                 part_id = part_id + 1        
         l.add_value('info', segments)
         
-        table_loader = l.nested_css('table')
-        table_loader.add_css('table', 'tr ::text')
+        l.add_css('table', decode('table tr ::text'))
         
         yield l.load_item()
