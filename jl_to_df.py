@@ -86,14 +86,17 @@ def awards(data, title):
     award_list = data.split('\n')
     df_temp = None
     for award in award_list:
-        split_1 = award.split(' : ')
-        award_name = split_1[0].strip()
-        split_2 = split_1[1].split(' - ')
-        award_type = split_2[0].strip()
-        split_3 = split_2[1].split(' & ')
+        split_1 = award.strip().split(' : ')
+        split_2a = split_1[0].strip().split(' ', 1)
+        award_year = split_2a[0].strip()
+        award_name = split_2a[1].strip()
+        split_2b = split_1[1].split(' - ')
+        award_type = split_2b[0].strip()
+        split_3 = split_2b[1].split(' & ')
         awardees = [awardee.strip() for awardee in split_3]
         # create seperate df first for each award to ensure proper broadcasting
-        tempdict = {'award_name': award_name,
+        tempdict = {'award_year': award_year,
+                    'award_name': award_name,
                     'award_type': award_type,
                     'awardees': awardees,
                     'drama': title,
@@ -198,6 +201,9 @@ for df in [df_details,
            ]:
     print(df)
     print('           ----------          ')
+    if df is None:
+        print(df)
+        continue
     globals()[df.name].reset_index(drop=True,
                                    inplace=True,
                                    ) # feather does not save the index (req)

@@ -1,28 +1,83 @@
 # -*- coding: utf-8 -*-
 
-import feather
-
-df = feather.read_dataframe('./clean_cols/df_details_c')
-
-from sklearn.preprocessing import MultiLabelBinarizer
 import pandas as pd
+'''
+url = 'https://en.wikipedia.org/wiki/Extraordinary_You'
+tables = pd.read_html(url)
 
-mlb = MultiLabelBinarizer()
-df['Genre'] = df['Genre'].fillna('').apply(lambda x: x.split(',')) \
-                .apply(lambda xlist: [x.strip().lower() for x in xlist])
-df2 = pd.DataFrame(mlb.fit_transform(df['Genre']), columns=mlb.classes_)
+for table in tables:
+    print('  ---   ')
+    print(table)
+    
+
+
+df[['a', 'b', 'c', 'd']] = df['1'].str.split(r'(\d+)\s(\w+)', expand=True)
 
 print(df)
-print(df2)
-print(mlb.classes_)
+'''
+a = {'1': [['1', '2', '3'], ['a', 'b', 'c'], ['z', 'z', 'z']],
+     '2': ['e', 'f', 'g']}
+
+df = pd.DataFrame(a)
+
+print((df['1'].map(type) == list).all())
+
+'''
+import feather
+folder = 'clean_cols'
+file = 'df_table'
+
+df = feather.read_dataframe('./%s/%s' % (folder, file))
+
+col = 'drama'
+#df = df.loc[df[col] == '']
+#for _, row in df.iloc[:20].iterrows():
+#    print(row)
+
+import pandas as pd
+#df[col] = pd.to_datetime(df[col])
+
+#print(df.sort_values(by=[col], inplace=True, ascending=True))
+print(list(df))
+print(df.info())
+
+print(df[col].unique())
+print(len(df[col].unique()))
+'''
+
 '''
 TO DO:
     MultiLabelBinarizer
     https://chrisalbon.com/machine_learning/preprocessing_structured_data/one-hot_encode_features_with_multiple_labels/
     
+    df_details
     Run 'Genre' through the MLB then through clean_cols
+    Related Drama and Related Series - Has Related Show (Boolean)
+    Airtime_merged - Split days (mlb) and timing slot (bin)
+    Names_merged - Num alternate names (redo merge, how many different langs)
+    Period_merged - Split start and end (day, month, year)
+    Network_merged - (mlb)
+    Song_merged - Has song (song hits at start and middle of period?)
+    Rating_merged - Remove
+    Episodes_merged - Split by ( and remove last, split by + and add all nums
+    
+    df_cast
+    cast_type - Main, supporting, others (supporting = family)
+        Combine with replace() regex
+    
+    df_awards
+    Check when awards are given/nominated
+    award_type - Remove
+    
+    df_table
+    drama - filter all dramas without ratings (search for rating site)
+    Date - Ratings only started 2012-05-26?
     
     
+    
+    list of wikipedia pages,
+    to extract:
+        summary data at right of page
     
     
     
