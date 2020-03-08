@@ -71,29 +71,41 @@ class Clean_df():
                                                                      regex,
                                                                      column))
     
-    def replace_values_in_col(self, df, column, regex_convert_list):
-        if (df[column].map(type) == list).all():
-            #df.assign(mapped=[[conv[k] for k in row if conv.get(k)] for row in df.B])
-        else:
-            #normal convert
+    def replace_values_in_col(self, df, column, regex_replace_list):
+        for x, reg in regex_replace_list.items():
+            df[column] = df[column].str.replace(reg, x, regex=True)
+                
+    def delete_values_in_col(self, df, column, regex_delete_list):
+        for reg in regex_delete_list:
+            df[column] = df[column].str.replace(reg, '', regex=True)
     
-    def create_mlb(self, df, col, delimiter=','): 
+    def create_mlb(self,
+                   df,
+                   col,
+                   delimiter=',',
+                   is_list=False,
+                   is_str=True): 
         
-        df[col] = df[col].fillna('')
-        for d in delimiter:
-            df[col] = df[col].apply(lambda x: x.replace(d, ','))
-        df[col] = df[col].apply(lambda x: x.split(','))
+        if not is_list:
+            df[col] = df[col].fillna('')
+            for d in delimiter:
+                df[col] = df[col].apply(lambda x: x.replace(d, ','))
+            df[col] = df[col].apply(lambda x: x.split(','))
+        if not is_str:
+            df[col] = df[col].apply(lambda xlist: [str(x) for x in xlist])
         df[col] = df[col].apply(lambda xlist: [x.strip().lower() for x in xlist])
         
         mlb = MultiLabelBinarizer()
-
+        
         df_col = pd.DataFrame(mlb.fit_transform(df[col]), columns=mlb.classes_)
         return df_col.astype('bool')
         
-    def merge_mlb(self, df, mlb, original):
+    def merge_mlb(self, df, mlb, original_column):
         
-        del df[original]
-        df = pd.concat([df, mlb])
+        del df[original_column]
+        # Rename all columns to start with original column
+        mlb.rename(columns = lambda x: original_column+'_'+x, inplace=True)
+        return pd.concat([df, mlb], axis=1)
         
     def process_df(self,
                    df_name,

@@ -49,16 +49,21 @@ def synopsis(data, title):
 
 # put into different columns depending on cast_type    
 cast_type = 'Main Cast' # default
+current_title = ''
 
 def cast(data, title):
     
-    global df_cast, cast_type
+    global df_cast, cast_type, current_title
     castings = data.split('\n')
     # check if data contains cast_type or actors
     data_type = castings[0].split(' as ')
     if len(data_type) < 2:
         cast_type = data_type[0].strip()
+        current_title = title
     else:
+        if title != current_title:
+            cast_type = 'Main Cast'
+            current_title = title
         cdict = {'cast_type': cast_type,
                  'drama': title,
                  }
@@ -156,6 +161,9 @@ def sources(data, title):
         df_source = pd.concat([df_source, df_temp])
     df_source.name = 'df_source'
 
+# Get list of all segment types
+#seg_list = {}
+
 # Parsing through the Scrape.jl file
 try:
     with open('Scrape.jl', 'r', encoding='utf-8') as f:
@@ -167,8 +175,34 @@ try:
             print('Processing %s' % title)
             for segment_name, segment_data in data['info'][0].items():
                 segment_type = segment_name.split()[0].lower()
+                
+                # Get list of segment_types
+#                if segment_type in seg_list:
+#                    seg_list[segment_type].append(title)
+#                else:
+#                    seg_list[segment_type] = [title]
+                
+                # Cleaning sources segment
                 if segment_type == 'episode':
                     segment_type = 'sources'
+                
+                # Cleaning cast segment
+                def set_cast_type(cast_type):
+                    if segment_data:
+                        try:
+                            globals()['cast'](cast_type, title)
+                        except:
+                            pass
+                
+                if segment_type == 'main':
+                    segment_type = 'cast'
+                    set_cast_type('Main Cast')
+                if segment_type in ['support', 'supporting']:
+                    segment_type = 'cast'
+                    set_cast_type('Support')
+                if segment_type in ['cameos', 'other', 'others', 'extended']:
+                    segment_type = 'cast'
+                    set_cast_type('Others')
                 if segment_data: # Only process non-empty data segments
                     try:
                         globals()[segment_type](segment_data, title)
@@ -189,6 +223,10 @@ try:
                 #print('Table not found')
 except FileNotFoundError:
     print('Scrapy.jl not found')
+
+#print('List of all segment types: ')
+#for seg, titles in seg_list.items():
+#    print(seg, len(titles))
 
 # print all dfs and save to feather
 import feather

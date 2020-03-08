@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 
 import pandas as pd
+import numpy as np
+import re
 '''
 url = 'https://en.wikipedia.org/wiki/Extraordinary_You'
 tables = pd.read_html(url)
@@ -15,14 +17,25 @@ df[['a', 'b', 'c', 'd']] = df['1'].str.split(r'(\d+)\s(\w+)', expand=True)
 
 print(df)
 '''
-a = {'1': [['1', '2', '3'], ['a', 'b', 'c'], ['z', 'z', 'z']],
-     '2': ['e', 'f', 'g']}
 
-df = pd.DataFrame(a)
+#a = {'data1': [['1', '2'], '2', '', ''],
+#     'data2': ['b', 'c', '1', '2']}
 
-print((df['1'].map(type) == list).all())
+#df = pd.DataFrame(a)
+
+def clean_ratings(x):
+    if x:
+        reg = '.*(\d+\.\d?).*'
+        r = re.compile(reg)
+        m = r.match(x)
+        if m:
+            return m.group(1)
+    return None
+
+print(clean_ratings('(<9.9)'))
 
 '''
+
 import feather
 folder = 'clean_cols'
 file = 'df_table'
