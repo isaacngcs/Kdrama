@@ -43,8 +43,12 @@ def synopsis(data, title):
     if df_synopsis is None:
         df_synopsis = pd.DataFrame(sdict, index=[0])
     else:
-        row = df_synopsis[df_synopsis['drama'] == 'title'].eq('b')
-        df_synopsis.loc[row, 'synopsis'] += '\n %s' % data
+        row = df_synopsis.index[df_synopsis['drama'] == title]
+        if not row.empty:
+            df_synopsis.loc[row, 'synopsis'] += '\n %s' % data
+        else:
+            df_synopsis = df_synopsis.append(sdict, ignore_index=True)
+            
     df_synopsis.name = 'df_synopsis'
 
 # put into different columns depending on cast_type    

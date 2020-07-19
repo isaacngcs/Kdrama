@@ -3,6 +3,14 @@
 import pandas as pd
 import numpy as np
 import re
+import datetime
+from dateutil.parser import parse
+
+pd.set_option('display.max_columns', None)
+pd.set_option('display.max_rows', None)
+pd.options.display.max_colwidth = 500
+
+
 '''
 url = 'https://en.wikipedia.org/wiki/Extraordinary_You'
 tables = pd.read_html(url)
@@ -18,22 +26,67 @@ df[['a', 'b', 'c', 'd']] = df['1'].str.split(r'(\d+)\s(\w+)', expand=True)
 print(df)
 '''
 
-#a = {'data1': [['1', '2'], '2', '', ''],
-#     'data2': ['b', 'c', '1', '2']}
+a = {'data1': ['1992', '2002', '2020', None, '1999'],
+     'data2': ['b', 'c', '1', '2', 'five']}
 
-#df = pd.DataFrame(a)
+df = pd.DataFrame(a)
 
-def clean_ratings(x):
-    if x:
-        reg = '.*(\d+\.\d?).*'
-        r = re.compile(reg)
-        m = r.match(x)
-        if m:
-            return m.group(1)
-    return None
+column = 'actors'
 
-print(clean_ratings('(<9.9)'))
+df[column] = ['-  Yoon Seo',
+                'Kim Sang Soon (gimsangsun)',
+                'Lee Tae Yeon (itaeyeon)',
+                'Kim Mi kyung',
+                '-  Park Cho Rong']
 
+column = 'lists'
+df[column] = [['a', 'b'],
+              ['b', 'a'],
+              ['a', '2'],
+              ['a'],
+              ['b'],
+              ]
+
+print(df[column])
+
+column2 = 'lists2'
+df[column2] = [['1', '2'],
+               ['1', '3'],
+               ['2', '3'],
+               ['1', '2', '3'],
+               [],
+               ]
+
+from sklearn.feature_extraction import FeatureHasher
+
+n_features = 5
+enc = FeatureHasher(n_features=n_features,
+                    input_type='string')
+encoded = enc.transform(df[column]).toarray()
+print(pd.DataFrame(encoded, columns=[column+'_'+str(x) for x in range(n_features)]))
+
+encoded = enc.transform(df[column2]).toarray()
+print(encoded)
+
+# df[column] = df[column].apply(lambda xlist: [x for x in xlist if not re.match('a', x)])
+
+# print(df[column])
+
+# a = 'a,,b'
+# a2 = a.split(',')
+# print(a2)
+
+# print(re.match('a', a))
+
+# column = ['actors', 'lists']
+# print(df[column])
+
+#reg = '(\w+(\s\w+)*)'
+#r = re.compile(reg)
+#string = 'Jung Hyun Suk (jeonghyeonseog)'
+#
+#m = r.match(string)
+#print(m.group(0))
 '''
 
 import feather

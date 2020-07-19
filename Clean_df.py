@@ -45,7 +45,7 @@ class Clean_df():
             for col in filter(r.match, col_list):
                 print('  %s deleted' % col)
                 del df[col]
-    
+                
     def merge_cols(self, df, regex_merge_list, is_mlb=False):
         
         col_list = list(df)
@@ -70,30 +70,74 @@ class Clean_df():
             print('Created column %s from regex %s on column %s:' % (col,
                                                                      regex,
                                                                      column))
+        del df[column]
     
-    def replace_values_in_col(self, df, column, regex_replace_list):
-        for x, reg in regex_replace_list.items():
-            df[column] = df[column].str.replace(reg, x, regex=True)
+    def replace_values_in_col(self,
+                              df,
+                              col,
+                              regex_replace_list,
+                              is_list=False):
+        if is_list:
+            for new, reg in regex_replace_list.items():
+                df[col] = df[col].apply(lambda xlist: [re.sub(reg, new, x) for x in xlist])
+        else:
+            for new, reg in regex_replace_list.items():
+                df[col] = df[col].str.replace(reg, new, regex=True)
                 
-    def delete_values_in_col(self, df, column, regex_delete_list):
-        for reg in regex_delete_list:
-            df[column] = df[column].str.replace(reg, '', regex=True)
+    def delete_values_in_col(self,
+                             df,
+                             col,
+                             regex_delete_list,
+                             is_list=False):
+        if is_list:
+            for reg in regex_delete_list:
+                df[col] = df[col].apply(lambda xlist: [x for x in xlist if not re.match(reg, x)])
+        else:
+            for reg in regex_delete_list:
+                df[col] = df[col].str.replace(reg, '', regex=True)
+    
+    def process_for_model(self,
+                          df,
+                          col,
+                          delimiter=',',
+                          is_list=False,
+                          regex_replace_list=None,
+                          regex_delete_list=None):
+        if not is_list:
+            df[col] = df[col].fillna('')
+            for d in delimiter:
+                df[col] = df[col].apply(lambda x: x.replace(d, ','))
+            df[col] = df[col].apply(lambda x: x.split(','))
+        df[col] = df[col].apply(lambda xlist: [str(x).strip().lower() for x in xlist])
+                         
+        # If regex_replace_list or regex_del_list present
+        if regex_replace_list:
+            self.replace_values_in_col(df,
+                                       col,
+                                       is_list=True,
+                                       regex_replace_list=regex_replace_list)
+        if regex_delete_list:
+            self.delete_values_in_col(df,
+                                      col,
+                                      is_list=True,
+                                      regex_delete_list=regex_delete_list)
+        
+        df[col] = df[col].apply(lambda xset: {x for x in xset}) \
+                         .apply(list)
     
     def create_mlb(self,
                    df,
                    col,
                    delimiter=',',
                    is_list=False,
-                   is_str=True): 
-        
-        if not is_list:
-            df[col] = df[col].fillna('')
-            for d in delimiter:
-                df[col] = df[col].apply(lambda x: x.replace(d, ','))
-            df[col] = df[col].apply(lambda x: x.split(','))
-        if not is_str:
-            df[col] = df[col].apply(lambda xlist: [str(x) for x in xlist])
-        df[col] = df[col].apply(lambda xlist: [x.strip().lower() for x in xlist])
+                   regex_replace_list=None,
+                   regex_del_list=None): 
+        self.process_for_model(df, 
+                               col, 
+                               delimiter, 
+                               is_list, 
+                               regex_replace_list,
+                               regex_del_list)
         
         mlb = MultiLabelBinarizer()
         

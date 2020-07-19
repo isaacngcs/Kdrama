@@ -5,12 +5,12 @@
 # it also standardises the values within each column,
 # merging columns created by the mlb where required
 
-'df_details_c'
-'df_synopsis_c'
-'df_cast_c'
-'df_awards_c'
-'df_table_c'
-'df_source_c'
+'df_details'
+'df_synopsis'
+'df_cast'
+'df_awards'
+'df_table'
+'df_source'
 
 load_folder = 'clean_cols'
 save_folder = 'clean_types'
@@ -23,7 +23,7 @@ from Clean_df import Clean_df
 import datetime
 from dateutil.parser import parse
 
-pd.set_option('display.max_rows', 5000)
+pd.set_option('display.max_rows', None)
 clean = Clean_df(load_folder, save_folder)
 
 # Processing df_details
@@ -33,29 +33,31 @@ def process_df_details():
     
     # Processing 'Genre' column
     column = 'Genre'
-    df_mlb = clean.create_mlb(df, column, [' ', '/'])
-    genre_merge_list = {'comedy': '.*com.*', 
-                        'drama': '.*(drama|web).*',
-                        'romance': '.*roman.*',
-                        'investigative': '.*investigat.*',
-                        'sci-fi': '.*sci.*',
-                        'thriller': '.*(thriller|suspense).*',
-                        'time travel': '.*time.*',
-                        'music': '.*music.*',
-                        'political': 'politic',
-                        'period': '.*period.*',
-                        'sports': '.*sport.*',
-                        'mystery': '.*m[iy]ster.*',
-                        }
-    clean.merge_cols(df_mlb, genre_merge_list, is_mlb=True)
     
-    genre_del_list = ['^$',
-                      '&',
-                      ]
-    genre_del_list += [col for col in df_mlb if df_mlb[col].sum() < 2]
-    clean.del_cols(df_mlb, genre_del_list)
+    # Set regex for lists
+    regex_replace_list = {'comedy': '.*com.*', 
+                          'drama': '.*(drama|web).*',
+                          'romance': '.*roman.*',
+                          'investigative': '.*investigat.*',
+                          'sci-fi': '.*sci.*',
+                          'thriller': '.*(thriller|suspense).*',
+                          'time travel': '.*time.*',
+                          'music': '.*music.*',
+                          'political': 'politic',
+                          'period': '.*period.*',
+                          'sports': '.*sport.*',
+                          'mystery': '.*m[iy]ster.*',
+                          }
     
-    return clean.merge_mlb(df, df_mlb, column)
+    regex_delete_list = ['&',
+                         ]
+    
+    # Process for model
+    clean.process_for_model(df,
+                            column,
+                            delimiter=[', ', '/'],
+                            regex_replace_list=regex_replace_list,
+                            regex_delete_list=regex_delete_list)
     
     # Processing 'Related_show_merged' column
     column = 'Related_show_merged'
@@ -123,11 +125,8 @@ def process_df_details():
     
     df[column] = df[column].apply(fill_no_info)
     
-    # Create mlb
-    df_mlb = clean.create_mlb(df, column, is_list=True)
-    
-    # Merge mlb back with main df
-    df = clean.merge_mlb(df, df_mlb, column)
+    # Convert back to string for feather save
+    df[column] = df[column].apply(lambda xlist: ','.join(xlist))
     
     # Processing 'Airtime' column
     column = 'Airtime'
@@ -234,13 +233,17 @@ def process_df_details():
         return x
     df[column] = df[column].apply(add_noinfo)
     
-    # Create mlb
-    df_mlb = clean.create_mlb(df,
-                              column,
-                              is_list=True,
-                              is_str=False)
+    df[column] = df[column].apply(lambda xlist: [str(x) for x in xlist]) \
+                           .apply(lambda x: ','.join(x))
     
-    df = clean.merge_mlb(df, df_mlb, column)
+    'Encode later'
+    # # Create mlb
+    # df_mlb = clean.create_mlb(df,
+    #                           column,
+    #                           is_list=True)
+    
+    # # Merge mlb
+    # df = clean.merge_mlb(df, df_mlb, column)
     
     # Processing 'Names_merged' column
     column = 'Names_merged'
@@ -256,10 +259,11 @@ def process_df_details():
     
     df[column] = df[column].apply(len_as_str)
     
-    # Create mlb and merge
-    df_mlb = clean.create_mlb(df, column)
-    print(df_mlb.columns)
-    df = clean.merge_mlb(df, df_mlb, column)
+    'Encode later'
+    # # Create mlb and merge
+    # df_mlb = clean.create_mlb(df, column)
+    # print(df_mlb.columns)
+    # df = clean.merge_mlb(df, df_mlb, column)
     
     # Processing Period_merged column
     column = 'Period_merged'
@@ -274,10 +278,13 @@ def process_df_details():
     df2 = pd.DataFrame(df[column].values.tolist(), index=df.index)
     
     #df2['lenlist'] = df[column].apply(len)
-    df2.columns = ['Period_start',
-                   'Period_end',
-                   'Period_rerun_start',
-                   'Period_rerun_end']
+    
+    period_columns = ['Period_start',
+                      'Period_end',
+                      'Period_rerun_start',
+                      'Period_rerun_end']
+    
+    df2.columns = period_columns
     
     df2['Period_end'].fillna(df2['Period_start'],
                              inplace = True)
@@ -290,35 +297,41 @@ def process_df_details():
     
     df2 = df2.applymap(to_datetime)
     
-    del df[column]
-    df = pd.concat([df, df2], axis=1)
+    # Split into year month day for both. Feather does not support datetime
+    for col in period_columns:
+        for t in ['day', 'month', 'year']:
+            df2[col+'_'+t] = df2[col].apply(lambda x: getattr(x, t))
     
-    # To use categorical embedding later
-    # hash on year?
+    # Delete all pre-process columns
+    del df[column]
+    for col in period_columns:
+        del df2[col]
+    
+    # Concat with main df    
+    df = pd.concat([df, df2], axis=1)
     
     # Processing 'Network_merged' column
     column = 'Network_merged'
     
-    df_mlb = clean.create_mlb(df, column, delimiter=['/', '&', 'and'])
+    # To standardise delimiters
+    regex_replace_list = {',': '[/&]|and'}
+    clean.replace_values_in_col(df, column, regex_replace_list)
     
-    regex_merge_list = {'kbs1': 'kbs1',
-                        'kbs2': 'kbs2',
-                        'kbs-n': 'kbs-?n',
-                        'mnet': 'mnet',
-                        'mbc plus': 'mbc ',
-                        'oksusu': 'oksusu',
-                        'dramax': 'dramax',
-                        }
-    clean.merge_cols(df_mlb, regex_merge_list, is_mlb=True)
+    df[column] = df[column].apply(lambda x: x.split(',')) \
+                           .apply(lambda xlist: [x.strip().lower() for x in xlist])
     
-    # Remove all single instance categories
-    regex_del_list = [col for col in df_mlb if df_mlb[col].sum() < 2]
-    clean.del_cols(df_mlb, regex_del_list)
+    # To merge similar networks
+    regex_replace_list = {'kbs1': '.*kbs1.*',
+                          'kbs2': '.*kbs2.*',
+                          'kbs-n': '.*kbs-?n.*',
+                          'mnet': '.*mnet.*',
+                          'mbc plus': '.*mbc .*',
+                          'oksusu': '.*oksusu.*',
+                          'dramax': '.*dramax.*',
+                          }
+    clean.replace_values_in_col(df, column, regex_replace_list, is_list=True)
     
-    df_mlb.rename(columns={'(aired at yunsae university main auditorium)': 'yunsae'},
-                  inplace=True)
-    
-    df = clean.merge_mlb(df, df_mlb, column)
+    df[column] = df[column].apply(lambda x: ','.join(x))
     
     # Processing 'Song_merged' column
     column = 'Song_merged'
@@ -347,12 +360,15 @@ def process_df_details():
                     else:
                         x[i] = int(m.group(1))
             if has_match:
-                return x
+                return x[0] # Just take the first, simplify but lose some data
         return None
         
     df[column] = df[column].apply(clean_episodes)
     
+    print(df.dtypes)
+    
     # Save df_details
+    df.name = df_name
     clean.save_df(df)
     
 # Processing df_cast
@@ -371,7 +387,59 @@ def process_df_cast():
                           }
     clean.replace_values_in_col(df, column, regex_replace_list)
     
+    # Remove characters column
+    del df['characters']
+    
+    print('dtypes... ', df.dtypes)
+    for col in df.columns:
+        print(col, df[col].nunique())
+    
+    # Process the actors column
+    column = 'actors'
+    
+    # Remove all rows that contain any '?'
+    df.drop(df.index[df[column].str.contains('\?')].tolist(), inplace=True)
+    
+    # Split easier than regex
+#    reg = '(\w+(\s\w+)*)'
+#    r = re.compile(reg)
+    
+    def clean_actors(x):
+        if x:
+            x = x.split('-')[-1] \
+                 .split('(')[0] \
+                 .strip() \
+                 .split('  ')[0] \
+                 .split('\t')[0] \
+                 .split(' " ')[0]
+            return x.strip()
+        return None
+    
+    # To-do: Clean all names that have more than 3 parts, likely error
+    
+    df[column] = df[column].apply(clean_actors)
+    
+    # / and @ split and create two rows
+    for delim in ['/', '@']:
+        df = df.set_index([c for c in df.columns if c != column]) \
+               .apply(lambda x: x.str.split(delim) \
+                                     .explode()) \
+               .reset_index()
+    
+    # Get number of actors for each number of appearances
+#    vc = df[column].explode().value_counts()
+#    print(vc.groupby(vc).count())
+    
+#    def num_word(x):
+#        if x:
+#            return len(x.strip().split(' '))
+#        return 0
+#    df['numwords'] = df[column].apply(num_word)
+    
+#    print(df[[column, 'numwords', 'drama']].loc[df['numwords'] > 3])
+    
     # Save df_cast
+    df.name = df_name
     clean.save_df(df)
 
 # Processing df_awards
@@ -419,6 +487,7 @@ def process_df_table():
     rating_count.rename(columns = lambda x: x+'_count', inplace=True)
     rating_mean = df.groupby('drama').mean()
     rating_mean.rename(columns = lambda x: x+'_mean', inplace=True)
+#    rating_mean['Nationwide_mean'] = 
     
     df = pd.concat([rating_count, rating_mean], axis=1)
     # Redeclare df.name
@@ -479,17 +548,17 @@ df_table
 df_source
     No current use
 df_synopsis
-    No current use
+    Maybe use TextBlob sentiment analysis?
 '''
 
 process_df_details()
 
-process_df_cast()
+# process_df_cast()
 
-process_df_awards()
+# process_df_awards()
 
-process_df_table()
+# process_df_table()
 
-process_df_source()
+# process_df_source()
 
-process_df_synopsis()
+# process_df_synopsis()
